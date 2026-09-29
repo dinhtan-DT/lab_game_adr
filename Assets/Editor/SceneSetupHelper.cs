@@ -319,6 +319,23 @@ public static class SceneSetupHelper
             Debug.Log("[SceneSetupHelper] Đã tạo ItemSpawner.");
         }
 
+        // 3b. Tạo LevelManager, GameOverUI, WinUI
+        if (Object.FindFirstObjectByType<LevelManager>() == null)
+        {
+            GameObject lmObj = new GameObject("LevelManager");
+            lmObj.AddComponent<LevelManager>();
+        }
+        if (Object.FindFirstObjectByType<GameOverUI>() == null)
+        {
+            GameObject goObj = new GameObject("GameOverUI");
+            goObj.AddComponent<GameOverUI>();
+        }
+        if (Object.FindFirstObjectByType<WinUI>() == null)
+        {
+            GameObject winObj = new GameObject("WinUI");
+            winObj.AddComponent<WinUI>();
+        }
+
         // 4. Tạo HUDManager và các element giao diện
         HUDManager hud = Object.FindFirstObjectByType<HUDManager>();
         if (hud != null)

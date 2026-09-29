@@ -56,5 +56,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "Lab_Nro-main.sln"
+    "dotnet.defaultSolution": "lab_game_adr.sln"
 }

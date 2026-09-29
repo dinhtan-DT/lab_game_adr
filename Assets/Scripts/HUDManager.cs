@@ -95,6 +95,8 @@ public class HUDManager : MonoBehaviour
         }
     }
 
+    public void UpdateKI(float current, float max) => UpdateKi(current, max);
+
     public void UpdateScore(int score)
     {
         if (scoreText != null)

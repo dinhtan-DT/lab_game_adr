@@ -158,6 +158,15 @@ public class AudioManager : MonoBehaviour
         }
     }
 
+    public void PlayJump()
+    {
+        if (isSoundMuted) return;
+        if (shootClip != null && sfxSource != null)
+        {
+            sfxSource.PlayOneShot(shootClip, 0.7f);
+        }
+    }
+
     public void PlayExplosion()
     {
         if (!isSoundMuted && explosionClip != null)

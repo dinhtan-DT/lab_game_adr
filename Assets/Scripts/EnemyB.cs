@@ -37,10 +37,10 @@ public class EnemyB : MonoBehaviour
     public float wobbleSpeed = 4f;
     public float wobbleMagnitude = 0.5f;
 
-    [Header("Kích Thước Toàn Bộ (Đã tăng x2 lên: 0.2)")]
+    [Header("Kích Thước Toàn Bộ (Đã nâng lên: 0.25)")]
     [Range(0.05f, 1.5f)]
-    [Tooltip("Kéo thanh trượt để thu nhỏ / phóng to B (Mặc định 0.2)")]
-    public float characterScale = 0.2f;
+    [Tooltip("Kéo thanh trượt để thu nhỏ / phóng to B (Mặc định 0.25)")]
+    public float characterScale = 0.25f;
 
     [Header("Độ Cao Đầu của B (Vegeta - Đã hạ thấp 2px: 1.1375)")]
     [Range(0.5f, 3.0f)]
@@ -78,8 +78,8 @@ public class EnemyB : MonoBehaviour
         if (moveSpeed < 4f) moveSpeed = 5f;
         if (moveFrameRate > 0.08f) moveFrameRate = 0.06f;
 
-        // Tự động tăng x2 lên 0.2 nếu đang ở scale cũ 0.1
-        if (characterScale <= 0.01f || Mathf.Approximately(characterScale, 0.1f)) characterScale = 0.2f;
+        // Tự động nâng kích cỡ lên 0.25 để bot to rõ ràng, dễ nhìn
+        if (characterScale <= 0.01f || characterScale < 0.24f) characterScale = 0.25f;
         if (parts != null)
         {
             parts.characterScale = characterScale;
@@ -165,6 +165,28 @@ public class EnemyB : MonoBehaviour
 
         parts.Flip(false);
         PickNewWaypoint();
+        CreateOverheadNameTag();
+    }
+
+    private void CreateOverheadNameTag()
+    {
+        Transform existing = transform.Find("OverheadNameTag");
+        if (existing != null) return;
+
+        GameObject tagObj = new GameObject("OverheadNameTag");
+        tagObj.transform.SetParent(transform, false);
+        tagObj.transform.localPosition = new Vector3(0, 1.4f, 0);
+
+        TextMesh tm = tagObj.AddComponent<TextMesh>();
+        tm.text = "★ NPC 1: VEGETA (AI) ★";
+        tm.fontSize = 28;
+        tm.characterSize = 0.045f;
+        tm.anchor = TextAnchor.MiddleCenter;
+        tm.alignment = TextAlignment.Center;
+        tm.color = new Color(1f, 0.85f, 0.1f, 1f); // Vàng kim
+
+        MeshRenderer mr = tagObj.GetComponent<MeshRenderer>();
+        if (mr != null) mr.sortingOrder = 25;
     }
 
     private bool isHit = false;
@@ -228,8 +250,15 @@ public class EnemyB : MonoBehaviour
 
     private IEnumerator DieAndRespawnRoutine()
     {
+        if (isHit) yield break; // Tránh gọi 2 lần
         isHit = true;
-        
+
+        // Báo kill cho LevelManager và cộng điểm
+        if (LevelManager.Instance != null)
+            LevelManager.Instance.RegisterKill();
+        if (GameManager.Instance != null)
+            GameManager.Instance.AddScore(100);
+
         // Ẩn tạm thời thay vì tắt hoàn toàn GameObject
         if (parts.headRenderer != null) parts.headRenderer.enabled = false;
         if (parts.bodyRenderer != null) parts.bodyRenderer.enabled = false;

@@ -1,0 +1,10 @@
+1.	Cài đặt trạng thái ‘game over’:
+•	Hiển thị thông báo/hiệu ứng hình ảnh/hiệu ứng âm thanh xxx trên màn hình chơi game.
+•	Hiển thị ít nhất 3 nút giúp người chơi điều hướng (Replay/Home Screen/Settings/Historical Progress/Item Warehouse/Help/…); cài đặt đầy đủ chức năng cho 3 nút đó -> chuyển tiếp sang các màn hình riêng biệt.
+2.	Xây dựng ít nhất 3 cấp độ chơi/nhiệm vụ/bản đồ khác nhau (đồ họa, cơ chế game, thế giới game) cho game.
+•	Duy trì/Lưu trạng thái của người chơi sau khi hoàn thành từng cấp độ chơi/nhiệm vụ/bản đồ.
+3.	Cài đặt trạng thái ‘win’ cho game:
+•	Có mục tiêu cụ thể để ‘win’ trò chơi.
+•	Hiển thị thông báo/hiệu ứng hình ảnh/hiệu ứng âm thanh yyy trên màn hình chơi game.
+•	Hiển thị ít nhất 3 nút giúp người chơi điều hướng (Replay/Home Screen/High Achievements/Historical Progress/…); cài đặt đầy đủ chức năng cho 3 nút đó -> chuyển tiếp sang các màn hình riêng biệt.
+Yêu cầu bổ sung: Xây dựng tính năng/hành vi thông minh cho ít nhất 3 NPC trong game.

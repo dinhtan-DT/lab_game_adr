@@ -19,8 +19,8 @@ public class KamehamehaC : MonoBehaviour
     [Range(0.05f, 1.5f)]
     [Tooltip("Kích thước đạn C (Mặc định 0.2 đã tăng x2)")]
     public float projectileScale = 0.2f;
-    public float hitDistance = 0.3f;
-    public float nearDistance = 1.0f;
+    public float hitDistance = 1.2f;
+    public float nearDistance = 1.8f;
     public float explosionDuration = 0.45f;
 
     [Header("Sprite Bay (Góc & Gần Đích)")]
@@ -52,8 +52,63 @@ public class KamehamehaC : MonoBehaviour
         mainRenderer = GetComponent<SpriteRenderer>();
         if (mainRenderer == null) mainRenderer = gameObject.AddComponent<SpriteRenderer>();
 
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        if (rb == null) rb = gameObject.AddComponent<Rigidbody2D>();
+        rb.bodyType = RigidbodyType2D.Kinematic;
+        rb.gravityScale = 0f;
+
+        CircleCollider2D col = GetComponent<CircleCollider2D>();
+        if (col == null) col = gameObject.AddComponent<CircleCollider2D>();
+        col.isTrigger = true;
+        col.radius = 1.0f;
+
         extraRenderer1 = CreateChildRenderer("ExtraExp1");
         extraRenderer2 = CreateChildRenderer("ExtraExp2");
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (isExploding) return;
+
+        EnemyB eb = other.GetComponent<EnemyB>();
+        if (eb != null && eb.gameObject.activeInHierarchy)
+        {
+            eb.OnHitBySkill(explosionDuration);
+            StartCoroutine(ExplosionRoutine());
+            return;
+        }
+
+        NPC_Frieza frieza = other.GetComponent<NPC_Frieza>();
+        if (frieza != null && frieza.gameObject.activeInHierarchy)
+        {
+            frieza.TakeHit();
+            StartCoroutine(ExplosionRoutine());
+            return;
+        }
+
+        NPC_Cell cell = other.GetComponent<NPC_Cell>();
+        if (cell != null && cell.gameObject.activeInHierarchy)
+        {
+            cell.TakeHit(3);
+            StartCoroutine(ExplosionRoutine());
+            return;
+        }
+
+        NPC_Piccolo piccolo = other.GetComponent<NPC_Piccolo>();
+        if (piccolo != null && piccolo.gameObject.activeInHierarchy && !piccolo.isDead)
+        {
+            piccolo.TakeHit(1);
+            StartCoroutine(ExplosionRoutine());
+            return;
+        }
+
+        Boss_PiccoloA bossPiccolo = other.GetComponent<Boss_PiccoloA>();
+        if (bossPiccolo != null && bossPiccolo.gameObject.activeInHierarchy && !bossPiccolo.isDead)
+        {
+            bossPiccolo.TakeHit(3);
+            StartCoroutine(ExplosionRoutine());
+            return;
+        }
     }
 
     private SpriteRenderer CreateChildRenderer(string childName)
@@ -79,16 +134,75 @@ public class KamehamehaC : MonoBehaviour
 
         if (targetEnemyB == null)
         {
-            EnemyB[] enemies = FindObjectsByType<EnemyB>(FindObjectsSortMode.None);
             float closest = float.MaxValue;
-            foreach (var e in enemies)
+            EnemyB[] enemies = FindObjectsByType<EnemyB>(FindObjectsSortMode.None);
+            if (enemies != null)
             {
-                if (e == null) continue;
-                float d = Vector3.Distance(transform.position, e.transform.position);
-                if (d < closest)
+                foreach (var e in enemies)
                 {
-                    closest = d;
-                    targetEnemyB = e.transform;
+                    if (e == null || !e.gameObject.activeInHierarchy) continue;
+                    float d = Vector3.Distance(transform.position, e.transform.position);
+                    if (d < closest)
+                    {
+                        closest = d;
+                        targetEnemyB = e.transform;
+                    }
+                }
+            }
+            NPC_Cell[] cells = FindObjectsByType<NPC_Cell>(FindObjectsSortMode.None);
+            if (cells != null)
+            {
+                foreach (var c in cells)
+                {
+                    if (c == null || !c.gameObject.activeInHierarchy) continue;
+                    float d = Vector3.Distance(transform.position, c.transform.position);
+                    if (d < closest)
+                    {
+                        closest = d;
+                        targetEnemyB = c.transform;
+                    }
+                }
+            }
+            NPC_Frieza[] friezas = FindObjectsByType<NPC_Frieza>(FindObjectsSortMode.None);
+            if (friezas != null)
+            {
+                foreach (var f in friezas)
+                {
+                    if (f == null || !f.gameObject.activeInHierarchy) continue;
+                    float d = Vector3.Distance(transform.position, f.transform.position);
+                    if (d < closest)
+                    {
+                        closest = d;
+                        targetEnemyB = f.transform;
+                    }
+                }
+            }
+            NPC_Piccolo[] piccolos = FindObjectsByType<NPC_Piccolo>(FindObjectsSortMode.None);
+            if (piccolos != null)
+            {
+                foreach (var p in piccolos)
+                {
+                    if (p == null || !p.gameObject.activeInHierarchy || p.isDead) continue;
+                    float d = Vector3.Distance(transform.position, p.transform.position);
+                    if (d < closest)
+                    {
+                        closest = d;
+                        targetEnemyB = p.transform;
+                    }
+                }
+            }
+            Boss_PiccoloA[] pBosses = FindObjectsByType<Boss_PiccoloA>(FindObjectsSortMode.None);
+            if (pBosses != null)
+            {
+                foreach (var pb in pBosses)
+                {
+                    if (pb == null || !pb.gameObject.activeInHierarchy || pb.isDead) continue;
+                    float d = Vector3.Distance(transform.position, pb.transform.position);
+                    if (d < closest)
+                    {
+                        closest = d;
+                        targetEnemyB = pb.transform;
+                    }
                 }
             }
             if (targetEnemyB == null)
@@ -109,6 +223,26 @@ public class KamehamehaC : MonoBehaviour
                 if (enemyB != null)
                 {
                     enemyB.OnHitBySkill(explosionDuration);
+                }
+                NPC_Frieza frieza = targetEnemyB.GetComponent<NPC_Frieza>();
+                if (frieza != null)
+                {
+                    frieza.TakeHit();
+                }
+                NPC_Cell cell = targetEnemyB.GetComponent<NPC_Cell>();
+                if (cell != null)
+                {
+                    cell.TakeHit(3);
+                }
+                NPC_Piccolo piccolo = targetEnemyB.GetComponent<NPC_Piccolo>();
+                if (piccolo != null)
+                {
+                    piccolo.TakeHit(1);
+                }
+                Boss_PiccoloA bossPiccolo = targetEnemyB.GetComponent<Boss_PiccoloA>();
+                if (bossPiccolo != null)
+                {
+                    bossPiccolo.TakeHit(3);
                 }
             }
             StartCoroutine(ExplosionRoutine());

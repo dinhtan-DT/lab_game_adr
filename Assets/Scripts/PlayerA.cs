@@ -393,20 +393,125 @@ public class PlayerA : MonoBehaviour
         }
     }
 
+    private float invulnerableTimer = 0f;
+    private Coroutine blinkCoroutine = null;
+
     public void TakeDamage(float amount)
     {
+        if (isDead) return;
         if (hasShield) return; // Không mất máu nếu có khiên
+        if (invulnerableTimer > 0f) return; // Bất tử tạm thời sau khi bị đánh
+
+        invulnerableTimer = 1.0f; // 1 giây miễn nhiễm sát thương sau khi nhận đòn
+        if (blinkCoroutine != null) StopCoroutine(blinkCoroutine);
+        blinkCoroutine = StartCoroutine(DamageBlinkRoutine());
+
         currentHp = Mathf.Clamp(currentHp - amount, 0, maxHp);
         if (HUDManager.Instance != null) HUDManager.Instance.UpdateHP(currentHp, maxHp);
 
         if (currentHp <= 0 && !isDead)
         {
             isDead = true;
-            Time.timeScale = 0f;
-            if (HUDManager.Instance != null) HUDManager.Instance.ShowGameOver();
+            StopAllCoroutines();
+            isChargingOrFiring = false;
+            isMeleeAttacking = false;
+            if (auraRenderer != null) auraRenderer.gameObject.SetActive(false);
+            if (chargingBallRenderer != null) chargingBallRenderer.gameObject.SetActive(false);
+            if (shieldVisual != null) shieldVisual.SetActive(false);
+            if (parts != null && parts.bodyRenderer != null) parts.bodyRenderer.color = Color.white;
+
+            // Kích hoạt Game Over qua GameManager (hiển thị GameOverUI + dừng game)
+            if (GameManager.Instance != null)
+                GameManager.Instance.TriggerGameOver();
+            else
+            {
+                // Fallback nếu chưa có GameManager
+                Time.timeScale = 0f;
+                if (HUDManager.Instance != null) HUDManager.Instance.ShowGameOver();
+            }
             Debug.Log("Player A is dead! GAME OVER.");
         }
     }
+
+    private IEnumerator DamageBlinkRoutine()
+    {
+        float timer = 0f;
+        bool visible = true;
+        while (timer < 1.0f)
+        {
+            visible = !visible;
+            if (parts != null)
+            {
+                Color c = visible ? Color.white : new Color(1f, 0.4f, 0.4f, 0.4f);
+                if (parts.headRenderer != null) parts.headRenderer.color = c;
+                if (parts.bodyRenderer != null) parts.bodyRenderer.color = c;
+                if (parts.legRenderer != null) parts.legRenderer.color = c;
+            }
+            yield return new WaitForSeconds(0.1f);
+            timer += 0.1f;
+        }
+        if (parts != null)
+        {
+            if (parts.headRenderer != null) parts.headRenderer.color = Color.white;
+            if (parts.bodyRenderer != null) parts.bodyRenderer.color = Color.white;
+            if (parts.legRenderer != null) parts.legRenderer.color = Color.white;
+        }
+        blinkCoroutine = null;
+    }
+
+    public void ResetPlayerState(float hp = -1f, float ki = -1f)
+    {
+        StopAllCoroutines();
+        isDead = false;
+        hasShield = false;
+        isChargingOrFiring = false;
+        isMeleeAttacking = false;
+        isHoldingLeft = false;
+        isHoldingRight = false;
+        isHoldingDown = false;
+        isJumping = false;
+        currentJumpCount = 0;
+        verticalVelocity = 0f;
+        currentPlatform = null;
+        invulnerableTimer = 0f;
+        if (blinkCoroutine != null)
+        {
+            StopCoroutine(blinkCoroutine);
+            blinkCoroutine = null;
+        }
+
+        // Đặt Goku đứng vững chãi trên sàn đất ngay lập tức
+        float currentGround = BackgroundManager.GroundY;
+        Vector3 pos = transform.position;
+        pos.y = currentGround;
+        transform.position = pos;
+        groundY = currentGround;
+
+        currentHp = hp > 0 ? hp : maxHp;
+        currentKi = ki >= 0 ? ki : maxKi;
+
+        if (auraRenderer != null) auraRenderer.gameObject.SetActive(false);
+        if (chargingBallRenderer != null) chargingBallRenderer.gameObject.SetActive(false);
+        if (shieldVisual != null) shieldVisual.SetActive(false);
+
+        if (HUDManager.Instance != null)
+        {
+            HUDManager.Instance.UpdateHP(currentHp, maxHp);
+            HUDManager.Instance.UpdateKi(currentKi, maxKi);
+        }
+        if (parts != null)
+        {
+            parts.extraHeadOffset = Vector3.zero;
+            parts.extraBodyOffset = Vector3.zero;
+            parts.extraLegOffset = Vector3.zero;
+            parts.SyncAndApplyAll();
+            parts.SetPose(headIdle, bodyIdle, legIdle);
+            if (parts.headRenderer != null) parts.headRenderer.color = Color.white;
+            if (parts.bodyRenderer != null) parts.bodyRenderer.color = Color.white;
+            if (parts.legRenderer != null) parts.legRenderer.color = Color.white;
+        }
+    }
+
 
     public void RestoreHp(float amount)
     {
@@ -433,15 +538,26 @@ public class PlayerA : MonoBehaviour
 
     private void Update()
     {
+        if (invulnerableTimer > 0f)
+        {
+            invulnerableTimer -= Time.deltaTime;
+        }
+
+        if (isDead) return;
+
+        // Luôn cập nhật nhảy và trọng lực liên tục mọi frame, bảo đảm nhân vật không bao giờ kẹt lơ lửng trên không
+        HandleJump();
+
         if (isChargingOrFiring) return;
 
         HandleAttackInput();
         HandleMovement();
-        HandleJump();
     }
 
     private void HandleAttackInput()
     {
+        if (isDead || isChargingOrFiring) return;
+
         // 1. Phím tắt bàn phím tiện lợi trên PC / Editor
         if (Input.GetKeyDown(KeyCode.Alpha1)) { Attack1_Kamehameha(); return; }
         if (Input.GetKeyDown(KeyCode.Alpha2)) { Attack2_KiBlast(); return; }
@@ -549,6 +665,8 @@ public class PlayerA : MonoBehaviour
 
     private void HandleMovement()
     {
+        if (isDead) return;
+
         float currentGround = BackgroundManager.GroundY;
         groundY = currentGround;
 
@@ -691,11 +809,19 @@ public class PlayerA : MonoBehaviour
 
     private void HandleJump()
     {
+        float currentGround = BackgroundManager.GroundY;
+
+        // Tự động kích hoạt rơi nếu nhân vật đang ở trên không mà không có bệ đỡ
+        if (!isJumping && currentPlatform == null && transform.position.y > currentGround + 0.05f)
+        {
+            isJumping = true;
+        }
+
         bool jumpKeyPressed = Input.GetKeyDown(KeyCode.Space) ||
                               Input.GetKeyDown(KeyCode.W) ||
                               Input.GetKeyDown(KeyCode.UpArrow);
 
-        if (jumpKeyPressed)
+        if (jumpKeyPressed && !isChargingOrFiring)
         {
             TryJump();
         }
@@ -721,14 +847,13 @@ public class PlayerA : MonoBehaviour
             }
             else if (verticalVelocity < 0f)
             {
-                parts.SetPose(headMove, bodyFall, legFall);
+                if (parts != null && !isChargingOrFiring) parts.SetPose(headMove, bodyFall, legFall);
 
                 // Kiểm tra đáp xuống các bệ vật cản bay (FloatingObstacle)
                 CheckLandOnObstacle();
             }
 
             // Kiểm tra đáp xuống sàn địa hình chính (diahinh)
-            float currentGround = BackgroundManager.GroundY;
             if (transform.position.y <= currentGround)
             {
                 Vector3 pos = transform.position;
@@ -774,6 +899,7 @@ public class PlayerA : MonoBehaviour
     /// </summary>
     public void TryJump()
     {
+        if (isDead || isChargingOrFiring) return;
         if (currentJumpCount >= 3) return; // Tối đa 3 mức nhảy
 
         currentJumpCount++;
@@ -998,7 +1124,7 @@ public class PlayerA : MonoBehaviour
             kiObj.transform.position = Vector3.MoveTowards(kiObj.transform.position, targetPos, speed * Time.deltaTime);
             elapsed += Time.deltaTime;
 
-            if (Vector3.Distance(kiObj.transform.position, targetPos) < 0.5f)
+            if (Vector3.Distance(kiObj.transform.position, targetPos) < 1.2f)
             {
                 if (AudioManager.Instance != null) AudioManager.Instance.PlayExplosion();
                 if (target != null)
@@ -1008,6 +1134,30 @@ public class PlayerA : MonoBehaviour
                     {
                         if (GameManager.Instance != null) GameManager.Instance.AddScore(10);
                         eb.StartCoroutine("DieAndRespawnRoutine");
+                    }
+                    NPC_Frieza frieza = target.GetComponent<NPC_Frieza>();
+                    if (frieza != null)
+                    {
+                        if (GameManager.Instance != null) GameManager.Instance.AddScore(10);
+                        frieza.TakeHit();
+                    }
+                    NPC_Cell cell = target.GetComponent<NPC_Cell>();
+                    if (cell != null)
+                    {
+                        if (GameManager.Instance != null) GameManager.Instance.AddScore(10);
+                        cell.TakeHit();
+                    }
+                    NPC_Piccolo piccolo = target.GetComponent<NPC_Piccolo>();
+                    if (piccolo != null)
+                    {
+                        if (GameManager.Instance != null) GameManager.Instance.AddScore(15);
+                        piccolo.TakeHit();
+                    }
+                    Boss_PiccoloA bossPiccolo = target.GetComponent<Boss_PiccoloA>();
+                    if (bossPiccolo != null && !bossPiccolo.isDead)
+                    {
+                        if (GameManager.Instance != null) GameManager.Instance.AddScore(15);
+                        bossPiccolo.TakeHit(1);
                     }
                 }
                 Destroy(kiObj);
@@ -1047,16 +1197,43 @@ public class PlayerA : MonoBehaviour
             transform.position = Vector3.Lerp(startPos, dashPos, t / dashTime);
             t += Time.deltaTime;
             
-            targetEnemyB = GetNearestEnemyB(5f); // Melee chỉ đánh quái rất gần
-            if (targetEnemyB != null && Vector3.Distance(transform.position, targetEnemyB.position) < 1.5f)
+            targetEnemyB = GetNearestEnemyB(7f); // Quét kẻ địch gần
+            if (targetEnemyB != null && Vector3.Distance(transform.position, targetEnemyB.position) < 2.5f)
             {
                 EnemyB eb = targetEnemyB.GetComponent<EnemyB>();
                 if (eb != null && eb.gameObject.activeInHierarchy)
                 {
                     if (AudioManager.Instance != null) AudioManager.Instance.PlayExplosion();
                     if (GameManager.Instance != null) GameManager.Instance.AddScore(20);
-                    // Dùng SendMessage để gọi Coroutine ẩn/hiện thay vì SetActive(false) (tránh lỗi ngắt Coroutine/Invoke)
                     eb.StartCoroutine("DieAndRespawnRoutine"); 
+                }
+                NPC_Frieza frieza = targetEnemyB.GetComponent<NPC_Frieza>();
+                if (frieza != null && frieza.gameObject.activeInHierarchy)
+                {
+                    if (AudioManager.Instance != null) AudioManager.Instance.PlayExplosion();
+                    if (GameManager.Instance != null) GameManager.Instance.AddScore(20);
+                    frieza.TakeHit();
+                }
+                NPC_Cell cell = targetEnemyB.GetComponent<NPC_Cell>();
+                if (cell != null && cell.gameObject.activeInHierarchy)
+                {
+                    if (AudioManager.Instance != null) AudioManager.Instance.PlayExplosion();
+                    if (GameManager.Instance != null) GameManager.Instance.AddScore(20);
+                    cell.TakeHit(2);
+                }
+                NPC_Piccolo piccolo = targetEnemyB.GetComponent<NPC_Piccolo>();
+                if (piccolo != null && piccolo.gameObject.activeInHierarchy && !piccolo.isDead)
+                {
+                    if (AudioManager.Instance != null) AudioManager.Instance.PlayExplosion();
+                    if (GameManager.Instance != null) GameManager.Instance.AddScore(20);
+                    piccolo.TakeHit(1);
+                }
+                Boss_PiccoloA bossPiccolo = targetEnemyB.GetComponent<Boss_PiccoloA>();
+                if (bossPiccolo != null && bossPiccolo.gameObject.activeInHierarchy && !bossPiccolo.isDead)
+                {
+                    if (AudioManager.Instance != null) AudioManager.Instance.PlayExplosion();
+                    if (GameManager.Instance != null) GameManager.Instance.AddScore(20);
+                    bossPiccolo.TakeHit(1);
                 }
             }
             yield return null;
@@ -1155,6 +1332,22 @@ public class PlayerA : MonoBehaviour
                 eb.StartCoroutine(eb.StunRoutine(2.5f));
             }
         }
+        NPC_Piccolo[] piccolos = FindObjectsByType<NPC_Piccolo>(FindObjectsSortMode.None);
+        foreach (var pic in piccolos)
+        {
+            if (pic != null && pic.gameObject.activeInHierarchy && !pic.isDead)
+            {
+                pic.StartCoroutine(pic.StunRoutine(2.5f));
+            }
+        }
+        Boss_PiccoloA[] pBosses = FindObjectsByType<Boss_PiccoloA>(FindObjectsSortMode.None);
+        foreach (var pb in pBosses)
+        {
+            if (pb != null && pb.gameObject.activeInHierarchy && !pb.isDead)
+            {
+                pb.StartCoroutine(pb.StunRoutine(2.5f));
+            }
+        }
         yield return null;
     }
 
@@ -1164,23 +1357,85 @@ public class PlayerA : MonoBehaviour
     /// </summary>
     public Transform GetNearestEnemyB(float maxDistance = 15f)
     {
-        EnemyB[] enemies = FindObjectsByType<EnemyB>(FindObjectsSortMode.None);
-        if (enemies == null || enemies.Length == 0) return null;
-
         Transform best = null;
         float minDist = float.MaxValue;
         Vector3 pos = transform.position;
 
-        foreach (var e in enemies)
+        EnemyB[] enemies = FindObjectsByType<EnemyB>(FindObjectsSortMode.None);
+        if (enemies != null)
         {
-            if (e == null || !e.gameObject.activeInHierarchy) continue;
-            float d = Vector3.Distance(pos, e.transform.position);
-            if (d < minDist && d <= maxDistance)
+            foreach (var e in enemies)
             {
-                minDist = d;
-                best = e.transform;
+                if (e == null || !e.gameObject.activeInHierarchy) continue;
+                float d = Vector3.Distance(pos, e.transform.position);
+                if (d < minDist && d <= maxDistance)
+                {
+                    minDist = d;
+                    best = e.transform;
+                }
             }
         }
+
+        NPC_Cell[] cells = FindObjectsByType<NPC_Cell>(FindObjectsSortMode.None);
+        if (cells != null)
+        {
+            foreach (var c in cells)
+            {
+                if (c == null || !c.gameObject.activeInHierarchy) continue;
+                float d = Vector3.Distance(pos, c.transform.position);
+                if (d < minDist && d <= maxDistance)
+                {
+                    minDist = d;
+                    best = c.transform;
+                }
+            }
+        }
+
+        NPC_Frieza[] friezas = FindObjectsByType<NPC_Frieza>(FindObjectsSortMode.None);
+        if (friezas != null)
+        {
+            foreach (var f in friezas)
+            {
+                if (f == null || !f.gameObject.activeInHierarchy) continue;
+                float d = Vector3.Distance(pos, f.transform.position);
+                if (d < minDist && d <= maxDistance)
+                {
+                    minDist = d;
+                    best = f.transform;
+                }
+            }
+        }
+
+        NPC_Piccolo[] piccolos = FindObjectsByType<NPC_Piccolo>(FindObjectsSortMode.None);
+        if (piccolos != null)
+        {
+            foreach (var p in piccolos)
+            {
+                if (p == null || !p.gameObject.activeInHierarchy || p.isDead) continue;
+                float d = Vector3.Distance(pos, p.transform.position);
+                if (d < minDist && d <= maxDistance)
+                {
+                    minDist = d;
+                    best = p.transform;
+                }
+            }
+        }
+
+        Boss_PiccoloA[] pBossList = FindObjectsByType<Boss_PiccoloA>(FindObjectsSortMode.None);
+        if (pBossList != null)
+        {
+            foreach (var pb in pBossList)
+            {
+                if (pb == null || !pb.gameObject.activeInHierarchy || pb.isDead) continue;
+                float d = Vector3.Distance(pos, pb.transform.position);
+                if (d < minDist && d <= maxDistance)
+                {
+                    minDist = d;
+                    best = pb.transform;
+                }
+            }
+        }
+
         return best;
     }
 
@@ -1189,6 +1444,12 @@ public class PlayerA : MonoBehaviour
     /// </summary>
     public void EnsureEnemyBCount()
     {
+        // Chỉ sinh Vegeta (EnemyB) ở Cấp 1. Ở Cấp 2 (Piccolo) và Cấp 3 (Cell) không sinh Vegeta!
+        if (Application.isPlaying && LevelManager.Instance != null && LevelManager.Instance.currentLevel != 1)
+        {
+            return;
+        }
+
         EnemyB[] existing = FindObjectsByType<EnemyB>(FindObjectsSortMode.None);
         int currentCount = existing != null ? existing.Length : 0;
 

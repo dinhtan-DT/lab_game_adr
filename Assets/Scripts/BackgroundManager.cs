@@ -252,4 +252,73 @@ public class BackgroundManager : MonoBehaviour
         }
 #endif
     }
+
+    /// <summary>
+    /// Đổi màu tint background theo cấp độ:
+    /// Level 1 - Trái Đất: trắng (gốc)
+    /// Level 2 - Namek:    xanh lam nhạt
+    /// Level 3 - Không Gian: tím/đen
+    /// Nếu có sprite bg_namek.png / bg_space.png trong Resources thì dùng trực tiếp.
+    /// </summary>
+    public void SetLevelTint(int level)
+    {
+        Color topTint    = Color.white;
+        Color groundTint = Color.white;
+        Color camBg      = new Color(0.40f, 0.70f, 1.0f);
+
+        if (level == 2)
+        {
+            // Level 2 – Hành Tinh Namek: Bầu trời xanh ngọc lam, thảm cỏ xanh rêu Namek
+            Sprite namekBg = Resources.Load<Sprite>("bg_namek");
+            if (namekBg != null)
+            {
+                foreach (var t in topPieces)
+                    if (t != null) { var sr = t.GetComponent<SpriteRenderer>(); if (sr) { sr.sprite = namekBg; sr.color = Color.white; } }
+            }
+            else
+            {
+                topTint = new Color(0.18f, 0.85f, 0.80f, 1f);
+            }
+            groundTint = new Color(0.20f, 0.75f, 0.35f, 1f);
+            camBg = new Color(0.10f, 0.45f, 0.40f);
+        }
+        else if (level == 3)
+        {
+            // Level 3 – Vũ Trụ Không Gian: Không gian tím thẫm ngàn sao, đất đá xám tím
+            Sprite spaceBg = Resources.Load<Sprite>("bg_space");
+            if (spaceBg != null)
+            {
+                foreach (var t in topPieces)
+                    if (t != null) { var sr = t.GetComponent<SpriteRenderer>(); if (sr) { sr.sprite = spaceBg; sr.color = Color.white; } }
+            }
+            else
+            {
+                topTint = new Color(0.35f, 0.15f, 0.55f, 1f);
+            }
+            groundTint = new Color(0.50f, 0.35f, 0.60f, 1f);
+            camBg = new Color(0.05f, 0.02f, 0.14f);
+        }
+        else
+        {
+            // Level 1 – Trái Đất: Màu gốc chuẩn ban ngày
+            topTint    = Color.white;
+            groundTint = Color.white;
+            camBg      = new Color(0.40f, 0.70f, 1.0f);
+        }
+
+        if (Camera.main != null)
+        {
+            Camera.main.backgroundColor = camBg;
+        }
+
+        // Áp tint màu lên tất cả pieces
+        bool hasCustomTop = (level == 2 && Resources.Load<Sprite>("bg_namek") != null) || (level == 3 && Resources.Load<Sprite>("bg_space") != null);
+        if (!hasCustomTop)
+        {
+            foreach (var t in topPieces)
+                if (t != null) { var sr = t.GetComponent<SpriteRenderer>(); if (sr) sr.color = topTint; }
+        }
+        foreach (var g in groundPieces)
+            if (g != null) { var sr = g.GetComponent<SpriteRenderer>(); if (sr) sr.color = groundTint; }
+    }
 }
