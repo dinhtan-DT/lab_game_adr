@@ -57,10 +57,12 @@ public class Boss_PiccoloA : MonoBehaviour
 
     // Effects & Projections
     private Sprite[] auraFrames;
+    private Sprite[] chargingBallFrames;
     private Sprite[] beamSpiralFrames;
     private Sprite[] attackEffectFrames;
     private Sprite[] explosionFrames;
     private SpriteRenderer auraRenderer;
+    private SpriteRenderer chargingBallRenderer;
     private GameObject shieldObj;
 
     // Overhead UI
@@ -281,14 +283,6 @@ public class Boss_PiccoloA : MonoBehaviour
         }
         beamSpiralFrames = beams.ToArray();
 
-        List<Sprite> attackEffects = new List<Sprite>();
-        for (int i = 363; i <= 365; i++)
-        {
-            Sprite s = LoadSpriteSafe($"Small{i}");
-            if (s != null) attackEffects.Add(s);
-        }
-        attackEffectFrames = attackEffects.ToArray();
-
         List<Sprite> exps = new List<Sprite>();
         for (int i = 169; i <= 180; i++)
         {
@@ -305,10 +299,81 @@ public class Boss_PiccoloA : MonoBehaviour
         if (legJump == null) legJump = Resources.Load<Sprite>("28");
         if (legFall == null) legFall = Resources.Load<Sprite>("29");
 
+        PlayerA playerA = FindFirstObjectByType<PlayerA>();
+        if (playerA != null)
+        {
+            if (playerA.auraFrames != null && playerA.auraFrames.Length > 0)
+                auraFrames = playerA.auraFrames;
+            if (playerA.chargingBallFrames != null && playerA.chargingBallFrames.Length > 0)
+                chargingBallFrames = playerA.chargingBallFrames;
+
+            KamehamehaC projectileEffects = playerA.projectileCPrefab != null
+                ? playerA.projectileCPrefab.GetComponent<KamehamehaC>()
+                : null;
+            if (projectileEffects != null)
+            {
+                beamSpiralFrames = new[]
+                {
+                    projectileEffects.spriteStraight,
+                    projectileEffects.spriteAngle40,
+                    projectileEffects.spriteAngle80,
+                    projectileEffects.spriteNearTarget
+                };
+                attackEffectFrames = new[]
+                {
+                    projectileEffects.exp63,
+                    projectileEffects.exp64,
+                    projectileEffects.exp65,
+                    projectileEffects.exp77,
+                    projectileEffects.exp78
+                };
+                explosionFrames = new[]
+                {
+                    projectileEffects.exp63,
+                    projectileEffects.exp64,
+                    projectileEffects.exp65,
+                    projectileEffects.exp77,
+                    projectileEffects.exp78,
+                    projectileEffects.exp53,
+                    projectileEffects.exp54,
+                    projectileEffects.exp55
+                };
+            }
+        }
+
+        if (auraFrames == null || auraFrames.Length == 0)
+            auraFrames = FindLoadedSprites("Small982", "Small983", "Small984", "Small985");
+        if (chargingBallFrames == null || chargingBallFrames.Length == 0)
+            chargingBallFrames = FindLoadedSprites("Small48", "Small49", "Small50", "Small51");
+        if (beamSpiralFrames == null || beamSpiralFrames.Length == 0)
+            beamSpiralFrames = FindLoadedSprites("Small59", "Small60", "Small61", "Small62");
+        if (attackEffectFrames == null || attackEffectFrames.Length == 0)
+            attackEffectFrames = FindLoadedSprites("Small63", "Small64", "Small65", "Small77", "Small78");
+        if (explosionFrames == null || explosionFrames.Length == 0)
+            explosionFrames = FindLoadedSprites("Small63", "Small64", "Small65", "Small77", "Small78", "Small53", "Small54", "Small55");
+
         if (parts != null)
         {
             parts.SetPose(headIdle, bodyIdle, legIdle);
         }
+    }
+
+    private Sprite[] FindLoadedSprites(params string[] spriteNames)
+    {
+        Sprite[] loadedSprites = Resources.FindObjectsOfTypeAll<Sprite>();
+        List<Sprite> frames = new List<Sprite>();
+        foreach (string spriteName in spriteNames)
+        {
+            foreach (Sprite sprite in loadedSprites)
+            {
+                if (sprite != null && sprite.name == spriteName)
+                {
+                    frames.Add(sprite);
+                    break;
+                }
+            }
+        }
+        return frames.ToArray();
     }
 
     private void SetupAuraRenderer()
@@ -321,6 +386,15 @@ public class Boss_PiccoloA : MonoBehaviour
         auraRenderer.sortingOrder = 22; // Ngay sau lưng thân boss
         auraRenderer.color = new Color(0.3f, 1f, 0.4f, 0.85f); // Màu xanh Namek
         auraObj.SetActive(false);
+
+        GameObject chargeBall = new GameObject("PiccoloChargeBall");
+        chargeBall.transform.SetParent(transform, false);
+        chargeBall.transform.localPosition = new Vector3(0.65f, 0.3f, 0f);
+        chargeBall.transform.localScale = Vector3.one * 0.55f;
+        chargingBallRenderer = chargeBall.AddComponent<SpriteRenderer>();
+        chargingBallRenderer.sortingOrder = 26;
+        chargingBallRenderer.color = new Color(0.45f, 1f, 0.7f, 1f);
+        chargeBall.SetActive(false);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -634,6 +708,7 @@ public class Boss_PiccoloA : MonoBehaviour
     {
         isChargingKi = true;
         if (auraRenderer != null) auraRenderer.gameObject.SetActive(true);
+        if (chargingBallRenderer != null) chargingBallRenderer.gameObject.SetActive(true);
 
         parts.SetPose(headAction, bodyChargeFrames != null && bodyChargeFrames.Length > 0 ? bodyChargeFrames[0] : bodyIdle, legIdle);
 
@@ -655,11 +730,20 @@ public class Boss_PiccoloA : MonoBehaviour
                 {
                     auraRenderer.sprite = auraFrames[frameIdx % auraFrames.Length];
                 }
+                if (chargingBallFrames != null && chargingBallFrames.Length > 0 && chargingBallRenderer != null)
+                    chargingBallRenderer.sprite = chargingBallFrames[frameIdx % chargingBallFrames.Length];
+            }
+            if (chargingBallRenderer != null)
+            {
+                chargingBallRenderer.transform.Rotate(0f, 0f, 900f * Time.deltaTime);
+                float pulse = 0.52f + Mathf.Sin(elapsed * 18f) * 0.12f;
+                chargingBallRenderer.transform.localScale = Vector3.one * pulse;
             }
             yield return null;
         }
 
         if (auraRenderer != null) auraRenderer.gameObject.SetActive(false);
+        if (chargingBallRenderer != null) chargingBallRenderer.gameObject.SetActive(false);
         isChargingKi = false;
         skillCooldownTimer = 1.0f * cooldownMultiplier;
     }
@@ -683,6 +767,9 @@ public class Boss_PiccoloA : MonoBehaviour
         SpriteRenderer sparkSr = spark.AddComponent<SpriteRenderer>();
         sparkSr.color = new Color(0.85f, 0.2f, 1f, 1f); // Tím/Vàng Ma Giới
         sparkSr.sortingOrder = 26;
+        spark.transform.localScale = Vector3.one * 0.75f;
+        if (chargingBallFrames != null && chargingBallFrames.Length > 0)
+            sparkSr.sprite = chargingBallFrames[0];
 
         float chargeTime = 0.6f;
         float t = 0f;
@@ -691,6 +778,8 @@ public class Boss_PiccoloA : MonoBehaviour
         {
             t += Time.deltaTime;
             spark.transform.Rotate(0f, 0f, 720f * Time.deltaTime);
+            float pulse = 0.82f + Mathf.Sin(t * 24f) * 0.18f;
+            spark.transform.localScale = Vector3.one * pulse;
             if (attackEffectFrames != null && attackEffectFrames.Length > 0)
             {
                 sparkSr.sprite = attackEffectFrames[sparkIdx % attackEffectFrames.Length];
@@ -720,11 +809,19 @@ public class Boss_PiccoloA : MonoBehaviour
         GameObject beamObj = new GameObject("Piccolo_Makankosappo");
         Vector3 spawnPos = transform.position + new Vector3(facingRight ? 1.0f : -1.0f, 0.4f, 0f);
         beamObj.transform.position = spawnPos;
-        beamObj.transform.localScale = new Vector3(1.8f, 1.8f, 1f);
+        beamObj.transform.localScale = new Vector3(1.1f, 1.1f, 1f);
 
         SpriteRenderer sr = beamObj.AddComponent<SpriteRenderer>();
         sr.sortingOrder = 27;
         sr.color = new Color(0.9f, 0.25f, 1f, 1f); // Màu tím đặc trưng Makankosappo
+
+        TrailRenderer trail = beamObj.AddComponent<TrailRenderer>();
+        trail.time = 0.22f;
+        trail.startWidth = 0.72f;
+        trail.endWidth = 0.04f;
+        trail.material = new Material(Shader.Find("Sprites/Default"));
+        trail.startColor = new Color(0.95f, 0.35f, 1f, 0.9f);
+        trail.endColor = new Color(0.2f, 0.9f, 1f, 0f);
 
         if (attackEffectFrames != null && attackEffectFrames.Length > 0)
             sr.sprite = attackEffectFrames[0];
@@ -796,20 +893,23 @@ public class Boss_PiccoloA : MonoBehaviour
 
     private void SpawnSingleKiBlast()
     {
-        GameObject ki = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        GameObject ki = new GameObject("Piccolo_KiBlast");
         ki.name = "Piccolo_KiBlast";
         ki.transform.position = transform.position + new Vector3(facingRight ? 0.9f : -0.9f, 0.4f, 0f);
-        ki.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+        ki.transform.localScale = Vector3.one * 0.72f;
+        SpriteRenderer renderer = ki.AddComponent<SpriteRenderer>();
+        renderer.sortingOrder = 28;
+        renderer.color = new Color(0.3f, 1f, 0.65f, 1f);
+        if (auraFrames != null && auraFrames.Length > 0)
+            renderer.sprite = auraFrames[Random.Range(0, auraFrames.Length)];
 
-        Collider c = ki.GetComponent<Collider>();
-        if (c != null) Destroy(c);
-
-        Renderer r = ki.GetComponent<Renderer>();
-        if (r != null)
-        {
-            r.material.shader = Shader.Find("Sprites/Default");
-            r.material.color = new Color(0.2f, 1f, 0.6f); // Xanh lục ngọc Namek
-        }
+        TrailRenderer trail = ki.AddComponent<TrailRenderer>();
+        trail.time = 0.18f;
+        trail.startWidth = 0.32f;
+        trail.endWidth = 0f;
+        trail.material = new Material(Shader.Find("Sprites/Default"));
+        trail.startColor = new Color(0.3f, 1f, 0.65f, 0.85f);
+        trail.endColor = new Color(0.3f, 1f, 0.65f, 0f);
 
         Vector3 targetPos = player != null ? player.transform.position : transform.position + new Vector3(facingRight ? 10f : -10f, 0f, 0f);
         StartCoroutine(KiBlastHomingFlight(ki, targetPos));
@@ -824,6 +924,9 @@ public class Boss_PiccoloA : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             ki.transform.position = Vector3.MoveTowards(ki.transform.position, targetPos, speed * Time.deltaTime);
+            ki.transform.Rotate(0f, 0f, 540f * Time.deltaTime);
+            float pulse = 0.72f + Mathf.Sin(elapsed * 20f) * 0.12f;
+            ki.transform.localScale = Vector3.one * pulse;
 
             if (player != null && !player.isDead)
             {

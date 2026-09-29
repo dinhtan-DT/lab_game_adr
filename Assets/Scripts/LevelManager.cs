@@ -17,7 +17,7 @@ public class LevelManager : MonoBehaviour
     [Header("Mục Tiêu Thắng Mỗi Level")]
     public int killsToWinLevel1 = 3;
     public int killsToWinLevel2 = 1; // 1 Siêu Boss Piccolo
-    public int killsToWinLevel3 = 3; // 3 Siêu Boss Piccolo
+    public int killsToWinLevel3 = 3;
 
     [Header("Cấu Hình Tốc Độ Theo Level")]
     public float[] enemySpeedPerLevel = { 5f, 7.5f, 9.5f };
@@ -550,7 +550,10 @@ public class LevelManager : MonoBehaviour
         }
         else
         {
-            questBannerText.text = $"[CẤP 3: VŨ TRỤ] 🎯 Diệt Boss Piccolo: ({piccoloKillCount}/{killsToWinLevel3})";
+            NPC_Cell cell = FindFirstObjectByType<NPC_Cell>();
+            questBannerText.text = cell != null
+                ? $"[CẤP 3: VŨ TRỤ] 🎯 Đánh bại Cell: ({cell.currentHp}/{cell.maxHp} HP)"
+                : "[CẤP 3: VŨ TRỤ] 🎯 Đánh bại Cell";
             questBannerText.color = new Color(1f, 0.45f, 0.9f);
         }
     }
@@ -642,7 +645,7 @@ public class LevelManager : MonoBehaviour
             if (eb == null)
             {
                 PlayerA pA = FindFirstObjectByType<PlayerA>();
-                if (pA != null) pA.CreateEnemyBInScene();
+                if (pA != null) pA.EnsureEnemyBCount();
             }
         }
         else if (currentLevel == 2)
@@ -653,10 +656,9 @@ public class LevelManager : MonoBehaviour
         }
         else if (currentLevel == 3)
         {
-            // Cấp 3: Ba Siêu Boss Piccolo, nhanh và mạnh hơn Cấp 2
+            // Cấp 3: Cell là boss cuối, sau Vegeta ở cấp 1 và Piccolo ở cấp 2.
             piccoloKillCount = 0;
-            for (int i = 1; i <= killsToWinLevel3; i++)
-                SpawnPiccoloBoss(i, 3);
+            SpawnCell();
         }
     }
 
@@ -731,7 +733,7 @@ public class LevelManager : MonoBehaviour
         if (Camera.main == null) return;
         GameObject obj = new GameObject("NPC_Cell_Boss");
         obj.AddComponent<NPC_Cell>();
-        Vector3 pos = Camera.main.ViewportToWorldPoint(new Vector3(0.85f, 0.6f, 10f));
+        Vector3 pos = Camera.main.ViewportToWorldPoint(new Vector3(0.82f, 0.6f, 10f));
         pos.z = 0f;
         obj.transform.position = pos;
     }

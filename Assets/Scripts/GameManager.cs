@@ -53,6 +53,11 @@ public class GameManager : MonoBehaviour
             GameObject lm = new GameObject("LevelManager");
             lm.AddComponent<LevelManager>();
         }
+        if (FindFirstObjectByType<AppScreensUI>() == null)
+        {
+            GameObject screens = new GameObject("AppScreensUI");
+            screens.AddComponent<AppScreensUI>();
+        }
     }
 
     public void AddScore(int amount)

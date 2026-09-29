@@ -187,14 +187,18 @@ public class WinUI : MonoBehaviour
                     if (LevelManager.Instance.currentLevel < 3)
                         LevelManager.Instance.GoToNextLevel();
                     else
-                        LevelManager.Instance.GoToLevel1();
+                    {
+                        if (AppScreensUI.Instance != null) AppScreensUI.Instance.ShowHome();
+                        else LevelManager.Instance.GoToLevel1();
+                    }
                 }
             });
 
         // Nút 3: High Achievements (bảng điểm cao)
         MakeButton("btn_win_highscore", box.transform, new Vector2(btnGap, btnY), "🏆 RANKING",
             new Color(0.45f, 0.10f, 0.55f), () => {
-                ShowHighScoreOverlay(box.transform);
+                if (AppScreensUI.Instance != null) AppScreensUI.Instance.ShowRanking();
+                else ShowHighScoreOverlay(box.transform);
             });
     }
 

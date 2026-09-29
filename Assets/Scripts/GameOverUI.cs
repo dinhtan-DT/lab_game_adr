@@ -113,15 +113,14 @@ public class GameOverUI : MonoBehaviour
         MakeButton("btn_go_home",      box.transform, new Vector2(0f, btnY), "🏠 HOME",
             new Color(0.15f, 0.35f, 0.65f), () => {
                 Hide();
-                if (GameManager.Instance != null) GameManager.Instance.ResetGameOver();
-                PlayerA p = FindFirstObjectByType<PlayerA>();
-                if (p != null) p.ResetPlayerState();
-                if (LevelManager.Instance != null) LevelManager.Instance.GoToLevel1();
+                if (AppScreensUI.Instance != null) AppScreensUI.Instance.ShowHome();
+                else if (LevelManager.Instance != null) LevelManager.Instance.GoToLevel1();
             });
 
         MakeButton("btn_go_settings",  box.transform, new Vector2(btnGap, btnY), "⚙ SETTINGS",
             new Color(0.50f, 0.35f, 0.10f), () => {
-                ToggleSettingsPanel(box.transform);
+                if (AppScreensUI.Instance != null) AppScreensUI.Instance.ShowSettings();
+                else ToggleSettingsPanel(box.transform);
             });
     }
 

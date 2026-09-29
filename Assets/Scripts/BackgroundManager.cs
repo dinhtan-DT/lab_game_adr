@@ -54,6 +54,13 @@ public class BackgroundManager : MonoBehaviour
 
     private float topPieceWidth = 22.13f;
     private float groundPieceWidth = 16.90f;
+    private Transform levelVisuals;
+    private SpriteRenderer namekPlanet;
+    private SpriteRenderer spacePlanet;
+    private readonly List<SpriteRenderer> spaceStars = new List<SpriteRenderer>();
+    private static Sprite starSprite;
+    private static Sprite namekPlanetSprite;
+    private static Sprite spacePlanetSprite;
 
     private const int TOP_PIECE_COUNT = 3;
     private const int GROUND_PIECE_COUNT = 4;
@@ -266,41 +273,22 @@ public class BackgroundManager : MonoBehaviour
         Color groundTint = Color.white;
         Color camBg      = new Color(0.40f, 0.70f, 1.0f);
 
+        EnsureLevelVisuals();
+
         if (level == 2)
         {
-            // Level 2 – Hành Tinh Namek: Bầu trời xanh ngọc lam, thảm cỏ xanh rêu Namek
-            Sprite namekBg = Resources.Load<Sprite>("bg_namek");
-            if (namekBg != null)
-            {
-                foreach (var t in topPieces)
-                    if (t != null) { var sr = t.GetComponent<SpriteRenderer>(); if (sr) { sr.sprite = namekBg; sr.color = Color.white; } }
-            }
-            else
-            {
-                topTint = new Color(0.18f, 0.85f, 0.80f, 1f);
-            }
-            groundTint = new Color(0.20f, 0.75f, 0.35f, 1f);
-            camBg = new Color(0.10f, 0.45f, 0.40f);
+            topTint = Color.white;
+            groundTint = new Color(0.32f, 0.82f, 0.36f, 1f);
+            camBg = new Color(0.035f, 0.31f, 0.25f);
         }
         else if (level == 3)
         {
-            // Level 3 – Vũ Trụ Không Gian: Không gian tím thẫm ngàn sao, đất đá xám tím
-            Sprite spaceBg = Resources.Load<Sprite>("bg_space");
-            if (spaceBg != null)
-            {
-                foreach (var t in topPieces)
-                    if (t != null) { var sr = t.GetComponent<SpriteRenderer>(); if (sr) { sr.sprite = spaceBg; sr.color = Color.white; } }
-            }
-            else
-            {
-                topTint = new Color(0.35f, 0.15f, 0.55f, 1f);
-            }
-            groundTint = new Color(0.50f, 0.35f, 0.60f, 1f);
-            camBg = new Color(0.05f, 0.02f, 0.14f);
+            topTint = Color.white;
+            groundTint = new Color(0.52f, 0.48f, 0.62f, 1f);
+            camBg = new Color(0.012f, 0.018f, 0.075f);
         }
         else
         {
-            // Level 1 – Trái Đất: Màu gốc chuẩn ban ngày
             topTint    = Color.white;
             groundTint = Color.white;
             camBg      = new Color(0.40f, 0.70f, 1.0f);
@@ -311,14 +299,113 @@ public class BackgroundManager : MonoBehaviour
             Camera.main.backgroundColor = camBg;
         }
 
-        // Áp tint màu lên tất cả pieces
-        bool hasCustomTop = (level == 2 && Resources.Load<Sprite>("bg_namek") != null) || (level == 3 && Resources.Load<Sprite>("bg_space") != null);
-        if (!hasCustomTop)
+        bool showCity = level == 1;
+        bool showGround = true;
+        foreach (var t in topPieces)
         {
-            foreach (var t in topPieces)
-                if (t != null) { var sr = t.GetComponent<SpriteRenderer>(); if (sr) sr.color = topTint; }
+            if (t == null) continue;
+            SpriteRenderer renderer = t.GetComponent<SpriteRenderer>();
+            if (renderer != null)
+            {
+                renderer.sprite = bgTopSprite;
+                renderer.color = topTint;
+                renderer.enabled = showCity;
+            }
         }
         foreach (var g in groundPieces)
-            if (g != null) { var sr = g.GetComponent<SpriteRenderer>(); if (sr) sr.color = groundTint; }
+        {
+            if (g == null) continue;
+            SpriteRenderer renderer = g.GetComponent<SpriteRenderer>();
+            if (renderer != null)
+            {
+                renderer.sprite = bgGroundSprite;
+                renderer.color = groundTint;
+                renderer.enabled = showGround;
+            }
+        }
+
+        if (namekPlanet != null) namekPlanet.enabled = level == 2;
+        if (spacePlanet != null) spacePlanet.enabled = level == 3;
+        foreach (SpriteRenderer star in spaceStars)
+            if (star != null) star.enabled = level == 3;
+    }
+
+    private void EnsureLevelVisuals()
+    {
+        if (levelVisuals == null)
+        {
+            GameObject visuals = new GameObject("LevelWorldVisuals");
+            visuals.transform.SetParent(transform, false);
+            levelVisuals = visuals.transform;
+        }
+
+        if (starSprite == null)
+            starSprite = CreateCircleSprite(16, Color.white, new Color(0.7f, 0.9f, 1f));
+        if (namekPlanetSprite == null)
+            namekPlanetSprite = CreateCircleSprite(96, new Color(0.10f, 0.48f, 0.22f), new Color(0.55f, 0.95f, 0.42f));
+        if (spacePlanetSprite == null)
+            spacePlanetSprite = CreateCircleSprite(96, new Color(0.56f, 0.12f, 0.20f), new Color(1f, 0.57f, 0.24f));
+
+        if (namekPlanet == null)
+            namekPlanet = CreateWorldSprite("NamekPlanet", namekPlanetSprite, new Vector2(0.78f, 0.76f), 2.2f, -9);
+        if (spacePlanet == null)
+            spacePlanet = CreateWorldSprite("SpacePlanet", spacePlanetSprite, new Vector2(0.18f, 0.78f), 3.0f, -9);
+
+        if (spaceStars.Count == 0)
+        {
+            for (int i = 0; i < 95; i++)
+            {
+                float x = ((i * 73) % 997) / 997f;
+                float y = ((i * 193 + 41) % 991) / 991f;
+                SpriteRenderer star = CreateWorldSprite("SpaceStar_" + i, starSprite, new Vector2(x, y), 0.035f + (i % 4) * 0.012f, -8);
+                spaceStars.Add(star);
+            }
+        }
+    }
+
+    private SpriteRenderer CreateWorldSprite(string objectName, Sprite sprite, Vector2 viewportPosition, float size, int order)
+    {
+        GameObject visual = new GameObject(objectName);
+        visual.transform.SetParent(levelVisuals, false);
+        if (Camera.main != null)
+        {
+            Vector3 position = Camera.main.ViewportToWorldPoint(new Vector3(viewportPosition.x, viewportPosition.y, 10f));
+            position.z = 0f;
+            visual.transform.position = position;
+        }
+        visual.transform.localScale = Vector3.one * size;
+        SpriteRenderer renderer = visual.AddComponent<SpriteRenderer>();
+        renderer.sprite = sprite;
+        renderer.sortingOrder = order;
+        renderer.enabled = false;
+        return renderer;
+    }
+
+    private static Sprite CreateCircleSprite(int resolution, Color innerColor, Color outerColor)
+    {
+        Texture2D texture = new Texture2D(resolution, resolution, TextureFormat.RGBA32, false);
+        texture.filterMode = FilterMode.Point;
+        texture.wrapMode = TextureWrapMode.Clamp;
+        Vector2 center = new Vector2((resolution - 1) * 0.5f, (resolution - 1) * 0.5f);
+        float radius = resolution * 0.47f;
+
+        for (int y = 0; y < resolution; y++)
+        {
+            for (int x = 0; x < resolution; x++)
+            {
+                float distance = Vector2.Distance(new Vector2(x, y), center) / radius;
+                if (distance > 1f)
+                {
+                    texture.SetPixel(x, y, Color.clear);
+                    continue;
+                }
+
+                float band = Mathf.Clamp01(0.5f + 0.30f * Mathf.Sin(y * 0.28f) + 0.20f * (1f - distance));
+                texture.SetPixel(x, y, Color.Lerp(outerColor, innerColor, band));
+            }
+        }
+
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0f, 0f, resolution, resolution), new Vector2(0.5f, 0.5f), resolution * 0.5f);
     }
 }
